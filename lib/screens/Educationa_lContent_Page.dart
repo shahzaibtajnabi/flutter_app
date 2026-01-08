@@ -1,194 +1,200 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
-class EducationalContentPage extends StatefulWidget {
-  const EducationalContentPage({super.key});
+class EducationPage extends StatefulWidget {
+  const EducationPage({super.key});
 
   @override
-  State<EducationalContentPage> createState() => _EducationalContentPageState();
+  State<EducationPage> createState() => _EducationPageState();
 }
 
-class _EducationalContentPageState extends State<EducationalContentPage> {
+class _EducationPageState extends State<EducationPage>
+    with TickerProviderStateMixin {
   bool isDarkMode = false;
-  String selectedCategory = "All";
-  String searchQuery = "";
+  late VideoPlayerController _videoController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
-  final List<Map<String, dynamic>> contents = [
+  final List<Map<String, String>> educationTopics = [
     {
-      "title": "Climate Change Basics",
-      "category": "Climate Change",
-      "image": "assets/images/education/climate.jpg",
-      "description": "Understand the science behind global warming.",
-      "fav": false,
+      "title": "Climate Change",
+      "content":
+      "Climate change refers to long-term shifts in temperatures and weather patterns, mainly caused by human activities.",
+      "image": "assets/assets/images/educational_pic/climate.jpg",
     },
     {
-      "title": "Recycling Tips",
-      "category": "Recycling",
-      "image": "assets/images/education/recycling.jpg",
-      "description": "Learn how to reduce, reuse, and recycle effectively.",
-      "fav": false,
+      "title": "Renewable Energy",
+      "content":
+      "Renewable energy comes from natural sources like sunlight, wind, and water. Using it reduces carbon emissions.",
+      "image": "assets/assets/images/educational_pic/energy.jpg",
     },
     {
-      "title": "Renewable Energy Sources",
-      "category": "Energy",
-      "image": "assets/images/education/energy.jpg",
-      "description": "Solar, wind, and other green energy options.",
-      "fav": false,
+      "title": "Sustainable Living",
+      "content":
+      "Sustainable living means reducing your ecological footprint by conserving resources and minimizing waste.",
+      "image": "assets/assets/images/educational_pic/travel.jpg",
     },
     {
-      "title": "Sustainable Food Choices",
-      "category": "Food",
-      "image": "assets/images/education/food.jpg",
-      "description": "Reduce your carbon footprint with smart food choices.",
-      "fav": false,
+      "title": "Recycling & Waste Management",
+      "content":
+      "Proper recycling and composting help reduce landfill waste and lower carbon emissions.",
+      "image": "assets/assets/images/educational_pic/recycling.jpg",
     },
     {
-      "title": "Eco-Friendly Travel",
-      "category": "Travel",
-      "image": "assets/images/education/travel.jpg",
-      "description": "Tips for traveling green and reducing emissions.",
-      "fav": false,
+      "title": "Water Conservation",
+      "content":
+      "Using water efficiently helps preserve ecosystems and reduces the energy used in water treatment.",
+      "image": "assets/assets/images/educational_pic/foot.jpg",
     },
   ];
 
-  List<Map<String, dynamic>> get filteredContents {
-    return contents.where((c) {
-      final matchesCategory =
-          selectedCategory == "All" || c["category"] == selectedCategory;
-      final matchesSearch =
-      c["title"].toString().toLowerCase().contains(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+
+    // Fade animation
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _fadeAnimation =
+        Tween<double>(begin: 0, end: 1).animate(_fadeController);
+    _fadeController.forward();
+
+    // Video background
+    _videoController =
+    VideoPlayerController.asset("assets/videos/nature_background.mp4")
+      ..initialize().then((_) {
+        _videoController
+          ..setLooping(true)
+          ..setVolume(0)
+          ..play();
+        setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _videoController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_videoController.value.isInitialized) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDarkMode
+                  ? [Colors.black, Colors.grey.shade900]
+                  : [Colors.green.shade100, Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(color: Colors.green),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
-          /// Background Overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDarkMode
-                    ? [Colors.grey.shade900, Colors.grey.shade800]
-                    : [Colors.green.shade50, Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Video Background
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController.value.size.width,
+                height: _videoController.value.size.height,
+                child: VideoPlayer(_videoController),
               ),
             ),
           ),
 
-          /// Main UI
-          SafeArea(
-            child: Column(
-              children: [
-                /// Custom AppBar
-                Container(
-                  margin: const EdgeInsets.all(12),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDarkMode
-                          ? [Colors.grey.shade900, Colors.black]
-                          : [Colors.green.shade600, Colors.green.shade800],
+          // Gradient Overlay
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDarkMode
+                    ? [Colors.black.withOpacity(0.6), Colors.transparent]
+                    : [Colors.white.withOpacity(0.2), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // Fade-in content
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  // AppBar
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: false,
+                    floating: true,
+                    snap: true,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                    title: const Text(
+                      "Educational Topics",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
                       ),
-                      const Expanded(
-                        child: Text(
-                          "Educational Content",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    ),
+                    actions: [
                       IconButton(
                         icon: Icon(
                           isDarkMode ? Icons.light_mode : Icons.dark_mode,
                           color: Colors.white,
                         ),
-                        onPressed: () {
-                          setState(() => isDarkMode = !isDarkMode);
-                        },
+                        onPressed: () =>
+                            setState(() => isDarkMode = !isDarkMode),
                       ),
                     ],
                   ),
-                ),
 
-                /// Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: "Search articles, videos...",
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor:
-                      isDarkMode ? Colors.grey.shade800 : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                          final topic = educationTopics[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: _glassCard(
+                              title: topic["title"]!,
+                              image: topic["image"],
+                              child: Text(
+                                topic["content"]!,
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : Colors.green.shade800,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: educationTopics.length,
                       ),
                     ),
-                    onChanged: (val) {
-                      setState(() => searchQuery = val);
-                    },
                   ),
-                ),
-
-                /// Category Filter
-                SizedBox(
-                  height: 50,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: ["All", "Climate Change", "Recycling", "Energy", "Food", "Travel"]
-                        .map(
-                          (cat) => Padding(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 6),
-                        child: ChoiceChip(
-                          label: Text(cat),
-                          selected: selectedCategory == cat,
-                          selectedColor: Colors.green.shade700,
-                          labelStyle: TextStyle(
-                            color: selectedCategory == cat
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                          onSelected: (_) {
-                            setState(() => selectedCategory = cat);
-                          },
-                        ),
-                      ),
-                    )
-                        .toList(),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                /// Content List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredContents.length,
-                    itemBuilder: (context, i) {
-                      final c = filteredContents[i];
-                      return _contentCard(c, i);
-                    },
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -196,12 +202,13 @@ class _EducationalContentPageState extends State<EducationalContentPage> {
     );
   }
 
-  /// Content Card
-  Widget _contentCard(Map<String, dynamic> c, int index) {
+  // Glass card with optional image
+  Widget _glassCard(
+      {required String title, required Widget child, String? image}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(25),
         gradient: LinearGradient(
           colors: isDarkMode
               ? [
@@ -213,70 +220,45 @@ class _EducationalContentPageState extends State<EducationalContentPage> {
             Colors.green.shade50.withOpacity(0.9)
           ],
         ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            blurRadius: 18,
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Image + Favorite
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
-                child: Image.asset(
-                  c["image"],
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                right: 12,
-                top: 12,
-                child: IconButton(
-                  icon: Icon(
-                    c["fav"] ? Icons.bookmark : Icons.bookmark_border,
-                    color: Colors.orangeAccent,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      contents[index]["fav"] = !contents[index]["fav"];
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  c["title"],
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.green.shade800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  c["description"],
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ],
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.green.shade800,
             ),
           ),
+          if (image != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: Image.asset(
+                image,
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          child,
         ],
       ),
     );

@@ -9,11 +9,15 @@ class SustainableRecipesPage extends StatefulWidget {
       _SustainableRecipesPageState();
 }
 
-class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
+class _SustainableRecipesPageState extends State<SustainableRecipesPage>
+    with TickerProviderStateMixin {
   late VideoPlayerController _videoController;
 
   bool isDarkMode = false;
   String selectedCategory = "All";
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   final List<Map<String, dynamic>> recipes = [
     {
@@ -51,6 +55,8 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
   @override
   void initState() {
     super.initState();
+
+    /// 🎥 Video Background
     _videoController =
     VideoPlayerController.asset("assets/videos/nature_background.mp4")
       ..initialize().then((_) {
@@ -60,11 +66,19 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
           ..play();
         setState(() {});
       });
+
+    /// ✨ Fade Animation
+    _fadeController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
   }
 
   @override
   void dispose() {
     _videoController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -77,10 +91,15 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_videoController.value.isInitialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
-
           /// 🌿 Background Video
           SizedBox.expand(
             child: FittedBox(
@@ -93,107 +112,109 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
             ),
           ),
 
-          /// Overlay
+          /// 🌈 Gradient Overlay (Carbon Style)
           Container(
-            color: isDarkMode
-                ? Colors.black.withOpacity(0.45)
-                : Colors.white.withOpacity(0.15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDarkMode
+                    ? [Colors.black.withOpacity(0.6), Colors.transparent]
+                    : [Colors.white.withOpacity(0.2), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
           ),
 
-          /// Main UI
-          SafeArea(
-            child: Column(
-              children: [
-
-                /// 🍽 Custom AppBar (Carbon style)
-                Container(
-                  margin: const EdgeInsets.all(12),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDarkMode
-                          ? [Colors.grey.shade900, Colors.black]
-                          : [Colors.green.shade600, Colors.green.shade800],
+          /// 🌟 Content
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  /// ✅ Modern Sliver AppBar
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: false,
+                    floating: true,
+                    snap: true,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back,
-                            color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                    title: const Text(
+                      "Sustainable Recipes",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
                       ),
-                      const Expanded(
-                        child: Text(
-                          "Sustainable Recipes",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    ),
+                    actions: [
                       IconButton(
                         icon: Icon(
                           isDarkMode
                               ? Icons.light_mode
                               : Icons.dark_mode,
                           color: Colors.white,
+                          size: 28,
                         ),
-                        onPressed: () {
-                          setState(() => isDarkMode = !isDarkMode);
-                        },
+                        onPressed: () =>
+                            setState(() => isDarkMode = !isDarkMode),
                       ),
                     ],
                   ),
-                ),
 
-                /// Category Filter
-                SizedBox(
-                  height: 50,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: ["All", "Breakfast", "Lunch", "Dinner"]
-                        .map(
-                          (cat) => Padding(
+                  /// 🍽 Category Filter
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 55,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
                         padding:
-                        const EdgeInsets.symmetric(horizontal: 6),
-                        child: ChoiceChip(
-                          label: Text(cat),
-                          selected: selectedCategory == cat,
-                          selectedColor: Colors.green.shade700,
-                          labelStyle: TextStyle(
-                            color: selectedCategory == cat
-                                ? Colors.white
-                                : Colors.black,
+                        const EdgeInsets.symmetric(horizontal: 16),
+                        children: ["All", "Breakfast", "Lunch", "Dinner"]
+                            .map(
+                              (cat) => Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6),
+                            child: ChoiceChip(
+                              label: Text(cat),
+                              selected:
+                              selectedCategory == cat,
+                              selectedColor:
+                              Colors.green.shade700,
+                              labelStyle: TextStyle(
+                                color: selectedCategory == cat
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                              onSelected: (_) =>
+                                  setState(() =>
+                                  selectedCategory = cat),
+                            ),
                           ),
-                          onSelected: (_) {
-                            setState(() => selectedCategory = cat);
-                          },
-                        ),
+                        )
+                            .toList(),
                       ),
-                    )
-                        .toList(),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 10),
-
-                /// Recipe List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredRecipes.length,
-                    itemBuilder: (context, i) {
-                      final r = filteredRecipes[i];
-                      return _recipeCard(r, i);
-                    },
+                  /// 📋 Recipe List
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                            (context, i) =>
+                            _recipeCard(filteredRecipes[i], i),
+                        childCount: filteredRecipes.length,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -201,12 +222,12 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
     );
   }
 
-  /// 🍲 Recipe Card
+  /// 🍲 Glass Recipe Card
   Widget _recipeCard(Map<String, dynamic> r, int index) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
+      margin: const EdgeInsets.only(bottom: 22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(25),
         gradient: LinearGradient(
           colors: isDarkMode
               ? [
@@ -218,26 +239,28 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
             Colors.green.shade50.withOpacity(0.9)
           ],
         ),
+        border:
+        Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            blurRadius: 18,
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          /// Image + Favorite
+          /// 🖼 Image + Favorite
           Stack(
             children: [
               ClipRRect(
                 borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
+                const BorderRadius.vertical(top: Radius.circular(25)),
                 child: Image.asset(
                   r["image"],
-                  height: 180,
+                  height: 190,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
@@ -247,32 +270,35 @@ class _SustainableRecipesPageState extends State<SustainableRecipesPage> {
                 top: 12,
                 child: IconButton(
                   icon: Icon(
-                    r["fav"] ? Icons.favorite : Icons.favorite_border,
+                    r["fav"]
+                        ? Icons.favorite
+                        : Icons.favorite_border,
                     color: Colors.redAccent,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      recipes[index]["fav"] =
-                      !recipes[index]["fav"];
-                    });
-                  },
+                  onPressed: () => setState(() =>
+                  recipes[index]["fav"] =
+                  !recipes[index]["fav"]),
                 ),
               ),
             ],
           ),
 
+          /// 📄 Details
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
                 Text(
                   r["title"],
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color:
-                    isDarkMode ? Colors.white : Colors.green.shade800,
+                    color: isDarkMode
+                        ? Colors.white
+                        : Colors.green.shade800,
+                    fontFamily: 'Poppins',
                   ),
                 ),
                 const SizedBox(height: 6),

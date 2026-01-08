@@ -85,6 +85,8 @@ flutter:
     - assets/videos/nature_background.mp4
     - assets/images/eco_products_pic/
     - assets/images/recipes_pic/
+    - assets/assets/images/educational_pic/
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

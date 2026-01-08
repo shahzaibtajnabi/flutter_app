@@ -10,7 +10,8 @@ class WasteTrackerPage extends StatefulWidget {
   State<WasteTrackerPage> createState() => _WasteTrackerPageState();
 }
 
-class _WasteTrackerPageState extends State<WasteTrackerPage> {
+class _WasteTrackerPageState extends State<WasteTrackerPage>
+    with TickerProviderStateMixin {
   late VideoPlayerController _videoController;
 
   final recyclingCtrl = TextEditingController();
@@ -23,9 +24,14 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
 
   bool isDarkMode = false;
 
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    /// Video Background
     _videoController = VideoPlayerController.asset(
       "assets/videos/nature_background.mp4",
     )..initialize().then((_) {
@@ -35,20 +41,36 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
         ..play();
       setState(() {});
     });
+
+    /// Fade Animation
+    _fadeController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
   }
 
   @override
   void dispose() {
     _videoController.dispose();
+    _fadeController.dispose();
+    recyclingCtrl.dispose();
+    compostCtrl.dispose();
+    plasticCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_videoController.value.isInitialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
-
           /// 🌿 Background Video
           SizedBox.expand(
             child: FittedBox(
@@ -61,157 +83,187 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
             ),
           ),
 
-          /// Dark / Light overlay
+          /// 🌈 Gradient Overlay (Same as Carbon Page)
           Container(
-            color: isDarkMode
-                ? Colors.black.withOpacity(0.45)
-                : Colors.white.withOpacity(0.15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDarkMode
+                    ? [Colors.black.withOpacity(0.6), Colors.transparent]
+                    : [Colors.white.withOpacity(0.2), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
           ),
 
-          /// Main Content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-
-                  /// 🔙 Custom AppBar (Carbon style)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isDarkMode
-                            ? [Colors.grey.shade900, Colors.black]
-                            : [Colors.green.shade600, Colors.green.shade800],
+          /// 🌟 Content
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  /// ✅ Modern Sliver AppBar
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: false,
+                    floating: true,
+                    snap: true,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    title: const Text(
+                      "Waste Reduction Tracker",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
                       ),
-                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          isDarkMode
+                              ? Icons.light_mode
+                              : Icons.dark_mode,
+                          color: Colors.white,
+                          size: 28,
                         ),
-                        const Expanded(
-                          child: Text(
-                            "Waste Reduction Tracker",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            isDarkMode
-                                ? Icons.light_mode
-                                : Icons.dark_mode,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            setState(() => isDarkMode = !isDarkMode);
-                          },
-                        ),
-                      ],
-                    ),
+                        onPressed: () =>
+                            setState(() => isDarkMode = !isDarkMode),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 24),
-
-                  /// 📝 Input Card
-                  _glassCard(
-                    title: "Weekly Waste Input",
-                    child: Column(
-                      children: [
-                        _input("Recycling (kg/week)", recyclingCtrl),
-                        _input("Composting (kg/week)", compostCtrl),
-                        _input("Plastic Reduction (count/week)", plasticCtrl),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              recycling =
-                                  double.tryParse(recyclingCtrl.text) ?? 0;
-                              compost =
-                                  double.tryParse(compostCtrl.text) ?? 0;
-                              plastic =
-                                  double.tryParse(plasticCtrl.text) ?? 0;
-                            });
-                          },
-                          icon: const Icon(Icons.analytics),
-                          label: const Text("Update Data"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 30, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                  /// 📦 Page Content
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate(
+                        [
+                          /// 📝 Input Card
+                          _glassCard(
+                            title: "Weekly Waste Input",
+                            child: Column(
+                              children: [
+                                _inputField(
+                                    "Recycling (kg/week)", recyclingCtrl),
+                                _inputField(
+                                    "Composting (kg/week)", compostCtrl),
+                                _inputField(
+                                    "Plastic Reduction (count/week)",
+                                    plasticCtrl),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        recycling = double.tryParse(
+                                            recyclingCtrl.text) ??
+                                            0;
+                                        compost = double.tryParse(
+                                            compostCtrl.text) ??
+                                            0;
+                                        plastic = double.tryParse(
+                                            plasticCtrl.text) ??
+                                            0;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.analytics,
+                                        color: Colors.white),
+                                    label: const Text(
+                                      "Update Data",
+                                      style:
+                                      TextStyle(color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                      Colors.green.shade700,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(25),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                  /// 📊 Chart
-                  _glassCard(
-                    title: "Waste Reduction Overview",
-                    child: SizedBox(
-                      height: 220,
-                      child: BarChart(
-                        BarChartData(
-                          borderData: FlBorderData(show: false),
-                          gridData: FlGridData(show: false),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles:
-                              SideTitles(showTitles: true),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (v, _) {
-                                  switch (v.toInt()) {
-                                    case 0:
-                                      return const Text("Recycle");
-                                    case 1:
-                                      return const Text("Compost");
-                                    case 2:
-                                      return const Text("Plastic");
-                                  }
-                                  return const Text("");
-                                },
+                          /// 📊 Bar Chart Card
+                          _glassCard(
+                            title: "Waste Reduction Overview",
+                            child: SizedBox(
+                              height: 230,
+                              child: BarChart(
+                                BarChartData(
+                                  borderData:
+                                  FlBorderData(show: false),
+                                  gridData:
+                                  FlGridData(show: false),
+                                  titlesData: FlTitlesData(
+                                    leftTitles: AxisTitles(
+                                      sideTitles:
+                                      SideTitles(showTitles: true),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (v, _) {
+                                          switch (v.toInt()) {
+                                            case 0:
+                                              return const Text(
+                                                  "Recycle");
+                                            case 1:
+                                              return const Text(
+                                                  "Compost");
+                                            case 2:
+                                              return const Text(
+                                                  "Plastic");
+                                          }
+                                          return const Text("");
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  barGroups: [
+                                    _barGroup(0, recycling),
+                                    _barGroup(1, compost),
+                                    _barGroup(2, plastic),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          barGroups: [
-                            _bar(0, recycling),
-                            _bar(1, compost),
-                            _bar(2, plastic),
-                          ],
-                        ),
+
+                          const SizedBox(height: 24),
+
+                          /// 💡 Tips Card
+                          _glassCard(
+                            title: "Tips to Improve",
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: const [
+                                _Tip("♻️ Segregate waste daily"),
+                                _Tip("🌱 Compost kitchen waste"),
+                                _Tip("🛍️ Use reusable items"),
+                                _Tip("🚯 Avoid single-use plastic"),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+                        ],
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  /// 💡 Tips
-                  _glassCard(
-                    title: "Tips to Improve",
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        _Tip("♻️ Segregate waste daily"),
-                        _Tip("🌱 Compost kitchen waste"),
-                        _Tip("🛍️ Use reusable items"),
-                        _Tip("🚯 Avoid single-use plastic"),
-                      ],
                     ),
                   ),
                 ],
@@ -223,12 +275,12 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
     );
   }
 
-  /// 🔹 Glass Card
+  /// 💎 Glass Card
   Widget _glassCard({required String title, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(25),
         gradient: LinearGradient(
           colors: isDarkMode
               ? [
@@ -236,44 +288,56 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
             Colors.grey.shade700.withOpacity(0.9)
           ]
               : [
-            Colors.white.withOpacity(0.85),
-            Colors.green.shade50.withOpacity(0.85)
+            Colors.white.withOpacity(0.9),
+            Colors.green.shade50.withOpacity(0.9)
           ],
         ),
+        border:
+        Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            blurRadius: 15,
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color:
-                  isDarkMode ? Colors.white : Colors.green.shade800)),
-          const SizedBox(height: 14),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color:
+              isDarkMode ? Colors.white : Colors.green.shade800,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 16),
           child,
         ],
       ),
     );
   }
 
-  Widget _input(String label, TextEditingController ctrl) {
+  /// ✏️ Input Field
+  Widget _inputField(String label, TextEditingController ctrl) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
           labelText: label,
           filled: true,
-          fillColor:
-          isDarkMode ? Colors.black54 : Colors.white,
+          fillColor: isDarkMode ? Colors.black54 : Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
@@ -283,21 +347,23 @@ class _WasteTrackerPageState extends State<WasteTrackerPage> {
     );
   }
 
-  BarChartGroupData _bar(int x, double y) {
+  /// 📊 Bar Chart Helper
+  BarChartGroupData _barGroup(int x, double y) {
     return BarChartGroupData(
       x: x,
       barRods: [
         BarChartRodData(
           toY: max(y, 0),
-          width: 26,
+          width: 28,
           borderRadius: BorderRadius.circular(8),
-          color: Colors.green,
-        )
+          color: Colors.green.shade600,
+        ),
       ],
     );
   }
 }
 
+/// 💡 Tip Widget
 class _Tip extends StatelessWidget {
   final String text;
   const _Tip(this.text);
@@ -306,8 +372,10 @@ class _Tip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: const TextStyle(fontSize: 15)),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 15),
+      ),
     );
   }
 }

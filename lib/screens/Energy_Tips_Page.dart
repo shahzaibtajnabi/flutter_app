@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'dart:math';
 
 class EnergyConservationPage extends StatefulWidget {
@@ -8,10 +9,17 @@ class EnergyConservationPage extends StatefulWidget {
   State<EnergyConservationPage> createState() => _EnergyConservationPageState();
 }
 
-class _EnergyConservationPageState extends State<EnergyConservationPage> {
+class _EnergyConservationPageState extends State<EnergyConservationPage>
+    with TickerProviderStateMixin {
   bool isDarkMode = false;
   double usageLevel = 50; // user energy usage %
   double energySaved = 20; // demo progress
+
+  late VideoPlayerController _videoController;
+  bool videoReady = false;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   final List<Map<String, dynamic>> generalTips = [
     {
@@ -47,147 +55,205 @@ class _EnergyConservationPageState extends State<EnergyConservationPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor:
-      isDarkMode ? Colors.grey.shade900 : const Color(0xFFEAF6EA),
-      body: SafeArea(
-        child: Column(
-          children: [
+  void initState() {
+    super.initState();
+    _initVideo();
 
-            /// 🔋 AppBar (Carbon style)
-            Container(
-              margin: const EdgeInsets.all(12),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDarkMode
-                      ? [Colors.grey.shade900, Colors.black]
-                      : [Colors.green.shade600, Colors.green.shade800],
-                ),
-                borderRadius: BorderRadius.circular(22),
+    _fadeController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
+  }
+
+  Future<void> _initVideo() async {
+    _videoController = VideoPlayerController.asset(
+      'assets/videos/nature_background.mp4',
+    );
+    await _videoController.initialize();
+    _videoController
+      ..setLooping(true)
+      ..setVolume(0)
+      ..play();
+    setState(() => videoReady = true);
+  }
+
+  @override
+  void dispose() {
+    _videoController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!videoReady) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          /// 🎥 Background Video
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController.value.size.width,
+                height: _videoController.value.size.height,
+                child: VideoPlayer(_videoController),
               ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon:
-                    const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      "Energy Conservation Tips",
-                      textAlign: TextAlign.center,
+            ),
+          ),
+
+          /// 🌈 Gradient Overlay
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDarkMode
+                    ? [Colors.black.withOpacity(0.6), Colors.transparent]
+                    : [Colors.white.withOpacity(0.2), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          /// 🌟 Content
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  /// ✅ Modern Sliver AppBar
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: false,
+                    floating: true,
+                    snap: true,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    title: const Text(
+                      "Energy Conservation",
                       style: TextStyle(
-                          fontSize: 20,
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          isDarkMode
+                              ? Icons.light_mode
+                              : Icons.dark_mode,
                           color: Colors.white,
-                          fontWeight: FontWeight.bold),
-                    ),
+                          size: 28,
+                        ),
+                        onPressed: () =>
+                            setState(() => isDarkMode = !isDarkMode),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: Icon(
-                      isDarkMode
-                          ? Icons.light_mode
-                          : Icons.dark_mode,
-                      color: Colors.white,
+
+                  /// ⚡ Personalized Energy Usage Card
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _glassCard(
+                          child: Column(
+                            children: [
+                              Text("Your Energy Usage", style: _titleStyle()),
+                              const SizedBox(height: 10),
+                              Slider(
+                                value: usageLevel,
+                                min: 0,
+                                max: 100,
+                                divisions: 10,
+                                label: "${usageLevel.toInt()}%",
+                                activeColor: Colors.green.shade700,
+                                onChanged: (v) =>
+                                    setState(() => usageLevel = v),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                getPersonalTip(),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        /// 📊 Energy Saved Progress
+                        _glassCard(
+                          child: Column(
+                            children: [
+                              Text("Energy Saved", style: _titleStyle()),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: LinearProgressIndicator(
+                                  value: min(energySaved / 100, 1),
+                                  valueColor:
+                                  const AlwaysStoppedAnimation(Colors.green),
+                                  backgroundColor: Colors.grey.shade300,
+                                  minHeight: 10,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "${energySaved.toInt()}% energy saved this month",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        /// 💡 General Tips Header
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "General Energy Saving Tips",
+                            style: _titleStyle(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 💡 Tips List
+                        ...generalTips.map((tip) => _tipCard(tip)),
+                        const SizedBox(height: 30),
+                      ]),
                     ),
-                    onPressed: () {
-                      setState(() => isDarkMode = !isDarkMode);
-                    },
                   ),
                 ],
               ),
             ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-
-                    /// ⚙ Personalized Usage Card
-                    _glassCard(
-                      child: Column(
-                        children: [
-                          Text(
-                            "Your Energy Usage",
-                            style: _titleStyle(),
-                          ),
-                          const SizedBox(height: 10),
-                          Slider(
-                            value: usageLevel,
-                            min: 0,
-                            max: 100,
-                            divisions: 10,
-                            label: "${usageLevel.toInt()}%",
-                            onChanged: (v) {
-                              setState(() {
-                                usageLevel = v;
-                              });
-                            },
-                          ),
-                          Text(
-                            getPersonalTip(),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// 📊 Energy Saved Progress
-                    _glassCard(
-                      child: Column(
-                        children: [
-                          Text("Energy Saved",
-                              style: _titleStyle()),
-                          const SizedBox(height: 10),
-                          LinearProgressIndicator(
-                            value: min(energySaved / 100, 1),
-                            valueColor:
-                            const AlwaysStoppedAnimation(Colors.green),
-                            backgroundColor: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "${energySaved.toInt()}% energy saved this month",
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 25),
-
-                    /// 💡 General Tips
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "General Energy Saving Tips",
-                        style: _titleStyle(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    ...generalTips.map((tip) => _tipCard(tip)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// 🔲 Glass Card
+  /// 🔹 Glass Card
   Widget _glassCard({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(25),
         gradient: LinearGradient(
           colors: isDarkMode
               ? [
@@ -199,10 +265,12 @@ class _EnergyConservationPageState extends State<EnergyConservationPage> {
             Colors.green.shade50.withOpacity(0.9)
           ],
         ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            blurRadius: 16,
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -217,9 +285,11 @@ class _EnergyConservationPageState extends State<EnergyConservationPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        color: isDarkMode
-            ? Colors.grey.shade800
-            : Colors.white,
+        gradient: LinearGradient(
+          colors: isDarkMode
+              ? [Colors.grey.shade800, Colors.grey.shade700]
+              : [Colors.white, Colors.green.shade50],
+        ),
         boxShadow: [
           BoxShadow(
             blurRadius: 10,
@@ -238,16 +308,10 @@ class _EnergyConservationPageState extends State<EnergyConservationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tip["title"],
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold),
-                ),
+                Text(tip["title"],
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  tip["desc"],
-                  style: const TextStyle(fontSize: 13),
-                ),
+                Text(tip["desc"], style: const TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -261,6 +325,7 @@ class _EnergyConservationPageState extends State<EnergyConservationPage> {
       fontSize: 18,
       fontWeight: FontWeight.bold,
       color: isDarkMode ? Colors.white : Colors.green.shade800,
+      fontFamily: 'Poppins',
     );
   }
 }
